@@ -1,0 +1,478 @@
+---
+title: "XLabTest"
+author: "Isaac Vernon"
+date: "4/7/2021"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(pid)
+library(data.table)
+# Q40 - 63 are our questions
+# Q2.17 is the book covariate question
+
+d = fread('/Users/Isaac/Downloads/NewXLab/NewXLab.csv')
+```
+
+```{r}
+# Select the Questions we care about
+df = subset(d, select = c(Q2.17, Q40.1, Q41.1, Q42.1, Q43.1, Q44.1, Q45.1, Q46.1, Q47.1, Q48.1, Q49.1, Q50.1, Q51.1, Q52.1, Q53.1, Q54.1, Q55.1, Q56.1, Q57.1, Q58.1, Q59.1, Q60.1, Q61.1, Q62.1, Q63.1))
+```
+
+```{r}
+# Rename Columns to reflect question
+df = df %>% rename(
+    book_covariate = Q2.17,
+    ChRegCol = Q40.1,
+    ChRegBW = Q41.1,
+    ChSmCol = Q42.1,
+    ChSmBW = Q43.1,
+    ChNoCol = Q44.1,
+    ChNoBW = Q45.1,
+    FiRegCol = Q46.1,
+    FiRegBW = Q47.1,
+    FiSmCol = Q48.1,
+    FiSmBW = Q49.1,
+    FiNoCol = Q50.1,
+    FiNoBW = Q51.1,
+    NoRegCol = Q52.1,
+    NoRegBW = Q53.1,
+    NoSmCol = Q54.1,
+    NoSmBW = Q55.1,
+    NoNoCol = Q56.1,
+    NoNoBW = Q57.1,
+    ClRegCol = Q58.1,
+    ClRegBW = Q59.1,
+    ClSmCol = Q60.1,
+    ClSmBW = Q61.1,
+    ClNoCol = Q62.1,
+    ClNoBW = Q63.1
+    )
+```
+
+```{r}
+# Remove the first two rows (Question text and import ids)
+df = df[-c(1,2),]
+```
+
+```{r}
+# Add indicators for answering each of the questions
+df$Childrens = (df$ChRegCol != "" | df$ChRegBW != "" | df$ChSmCol !="" | df$ChSmBW != "" | df$ChNoCol != "" | df$ChNoBW != "")
+
+df$Financial = (df$FiRegCol != "" | df$FiRegBW != "" | df$FiSmCol !="" | df$FiSmBW != "" | df$FiNoCol != "" | df$FiNoBW != "")
+
+df$NonFiction = (df$NoRegCol != "" | df$NoRegBW != "" | df$NoSmCol !="" | df$NoSmBW != "" | df$NoNoCol != "" | df$NoNoBW != "")
+
+df$Classic = (df$ClRegCol != "" | df$ClRegBW != "" | df$ClSmCol !="" | df$ClSmBW != "" | df$ClNoCol != "" | df$ClNoBW != "")
+```
+
+```{r}
+# Binary for No Question answered
+df$NoAnswer = (!df$Childrens & !df$Financial & !df$NonFiction & !df$Classic)
+```
+
+
+```{r}
+# Make Table for Children
+ChRegCol = length(df$ChRegCol[df$ChRegCol == 2])
+TotalRegCol = length(df$ChRegCol[df$ChRegCol %in% c(1,2,3)])
+pctRegCol = ChRegCol / TotalRegCol
+
+ChRegBW = length(df$ChRegBW[df$ChRegBW == 2])
+TotalRegBW = length(df$ChRegBW[df$ChRegBW %in% c(1,2,3)])
+pctRegBW = ChRegBW / TotalRegBW
+
+pctReg = pctRegCol * (TotalRegCol / (TotalRegCol + TotalRegBW)) + pctRegBW * (TotalRegBW / (TotalRegCol + TotalRegBW))
+
+ChSmBW = length(df$ChSmBW[df$ChSmBW == 2])
+TotalSmBW = length(df$ChSmBW[df$ChSmBW %in% c(1,2,3)])
+pctSmBW = ChSmBW / TotalSmBW
+
+ChSmCol = length(df$ChSmCol[df$ChSmCol == 2])
+TotalSmCol = length(df$ChSmCol[df$ChSmCol %in% c(1,2,3)])
+pctSmCol = ChSmCol / TotalSmCol
+
+pctSm = pctSmCol * (TotalSmCol / (TotalSmCol + TotalSmBW)) + pctSmBW * (TotalSmBW / (TotalSmCol + TotalSmBW))
+
+ChNoBW = length(df$ChNoBW[df$ChNoBW == 2])
+TotalNoBW = length(df$ChNoBW[df$ChNoBW %in% c(1,2,3)])
+pctNoBW = ChNoBW / TotalNoBW
+
+ChNoCol = length(df$ChNoCol[df$ChNoCol == 2])
+TotalNoCol = length(df$ChNoCol[df$ChNoCol %in% c(1,2,3)])
+pctNoCol = ChNoCol / TotalNoCol
+
+pctNo = pctNoCol * (TotalNoCol / (TotalNoCol + TotalNoBW)) + pctNoBW * (TotalNoBW / (TotalNoCol + TotalNoBW))
+
+OverallC = (ChNoCol / TotalNoCol) * (TotalNoCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (ChSmCol / TotalSmCol) * (TotalSmCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (ChRegCol / TotalRegCol) * (TotalRegCol/ (TotalNoCol + TotalSmCol + TotalRegCol))
+
+OverallB = (ChNoBW / TotalNoBW) * (TotalNoBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (ChSmBW / TotalSmBW) * (TotalSmBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (ChRegBW / TotalRegBW) * (TotalRegBW/ (TotalNoBW + TotalSmBW + TotalRegBW))
+
+OverallDif = OverallC - OverallB
+```
+
+```{r}
+testColor = prop.test(x=c(ChRegCol + ChSmCol + ChNoCol, ChRegBW + ChSmBW + ChNoBW), n=c(TotalNoCol+TotalSmCol+TotalRegCol, TotalNoBW+TotalSmBW+TotalRegBW))
+
+testRegNoCol = prop.test(x=c(ChRegCol, ChNoCol), n=c(TotalRegCol, TotalNoCol))
+
+testRegNoBW = prop.test(x=c(ChRegBW, ChNoBW), n=c(TotalRegBW, TotalNoBW)) 
+
+testRegNo = prop.test(x=c(ChRegCol+ChRegBW, ChNoBW+ChNoCol), n=c(TotalRegBW+TotalRegCol, TotalNoBW+TotalNoCol))
+
+testRegSmCol = prop.test(x=c(ChRegCol, ChSmCol), n=c(TotalRegCol, TotalSmCol))
+
+testRegSmBW = prop.test(x=c(ChRegBW, ChSmBW), n=c(TotalRegBW, TotalSmBW)) 
+
+testRegSm = prop.test(x=c(ChRegCol+ChRegBW, ChSmBW+ChSmCol), n=c(TotalRegBW+TotalRegCol, TotalSmBW+TotalSmCol))
+
+testSmNoCol = prop.test(x=c(ChSmCol, ChNoCol), n=c(TotalSmCol, TotalNoCol))
+
+testSmNoBW = prop.test(x=c(ChSmBW, ChNoBW), n=c(TotalSmBW, TotalNoBW)) 
+
+testSmNo = prop.test(x=c(ChSmCol+ChSmBW, ChNoBW+ChNoCol), n=c(TotalSmBW+TotalSmCol, TotalNoBW+TotalNoCol))
+
+testColNo = prop.test(x=c(ChNoCol, ChNoBW), n=c(TotalNoCol, TotalNoBW))
+
+testColSm = prop.test(x=c(ChSmCol, ChSmBW), n=c(TotalSmCol, TotalSmBW)) 
+
+testColReg = prop.test(x=c(ChRegCol, ChRegBW), n=c(TotalRegCol, TotalRegBW))
+
+
+# Put it all together
+
+chtable = data.frame(Childrens=c("Color", "Black and White", "Overall", "Color-B&W (PVal)"),
+                     Overall = c(round(OverallC, digits = 3), round(OverallB, digits = 3), "", paste(round(OverallDif, digits = 3), " (", round(testColor$p.value, digits = 3), ")")),
+                     NoImage = c(round(pctNoCol, digits = 3), round(pctNoBW, digits = 3), round(pctNo, digits = 3), paste(round(pctNoCol - pctNoBW, digits = 3), " (", round(testColNo$p.value, digits = 3), ")")),
+                     SmallImage = c(round(pctSmCol, digits = 3), round(pctSmBW, digits = 3), round(pctSm, digits = 3), paste(round(pctSmCol - pctSmBW, digits = 3), " (", round(testColSm$p.value, digits = 3), ")")),
+                     RegImage = c(round(pctRegCol, digits = 3), round(pctRegBW, digits = 3), round(pctReg, digits = 3), paste(round(pctRegCol - pctRegBW, digits = 3), " (", round(testColReg$p.value, digits = 3), ")")),
+                     "RegMinNo Pval"=c(paste(round(pctRegCol -pctNoCol, digits = 3), " (", round(testRegNoCol$p.value, digits = 3), ")"), paste(round(pctRegBW-pctNoBW, digits = 3), " (", round(testRegNoBW$p.value, digits = 3), ")"), paste(round(pctReg-pctNo, digits = 3), " (", round(testRegNo$p.value, digits = 3), ")"), ""),
+                     "RegMinSm PVal"=c(paste(round(pctRegCol - pctSmCol, digits = 3), " (", round(testRegSmCol$p.value, digits = 3), ")"), paste(round(pctRegBW - pctSmBW, digits = 3), " (", round(testRegSmBW$p.value, digits = 3), ")"), paste(round(pctReg - pctSm, digits = 3), " (", round(testRegSm$p.value, digits = 3), ")"), ""),
+                     "SmMinNo PVal"=c(paste(round(pctSmCol- pctNoCol, digits = 3), " (", round(testSmNoCol$p.value, digits = 3), ")"), paste(round(pctSmBW-pctNoBW, digits = 3), " (", round(testSmNoBW$p.value, digits = 3), ")"), paste(round(pctSm-pctNo, digits = 3), " (", round(testSmNo$p.value, digits = 3), ")"), ""))
+chtable
+```
+
+```{r}
+# Make Table for Financial
+FiRegCol = length(df$FiRegCol[df$FiRegCol== "IM_cC15sUM3wdS0qGO"])
+TotalRegCol = length(df$FiRegCol[df$FiRegCol %in% c("IM_cC15sUM3wdS0qGO","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")])
+pctRegCol = FiRegCol / TotalRegCol
+
+FiRegBW = length(df$FiRegBW[df$FiRegBW == "IM_4YZShV208PsmCMu"])
+TotalRegBW = length(df$FiRegBW[df$FiRegBW %in% c("IM_4YZShV208PsmCMu","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")])
+pctRegBW = FiRegBW / TotalRegBW
+
+pctReg = pctRegCol * (TotalRegCol / (TotalRegCol + TotalRegBW)) + pctRegBW * (TotalRegBW / (TotalRegCol + TotalRegBW))
+
+FiSmBW = length(df$FiSmBW[df$FiSmBW == "IM_5C1focehBmaxTiS"])
+TotalSmBW = length(df$FiSmBW[df$FiSmBW %in% c("IM_5C1focehBmaxTiS","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")])
+pctSmBW = FiSmBW / TotalSmBW
+
+FiSmCol = length(df$FiSmCol[df$FiSmCol == "IM_bpXACllyeiwpR78"])
+TotalSmCol = length(df$FiSmCol[df$FiSmCol %in% c("IM_bpXACllyeiwpR78","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")])
+pctSmCol = FiSmCol / TotalSmCol
+
+pctSm = pctSmCol * (TotalSmCol / (TotalSmCol + TotalSmBW)) + pctSmBW * (TotalSmBW / (TotalSmCol + TotalSmBW))
+
+FiNoBW = length(df$FiNoBW[df$FiNoBW == "IM_9o9d8MJYLTwpJSC"])
+TotalNoBW = length(df$FiNoBW[df$FiNoBW %in% c("IM_9o9d8MJYLTwpJSC","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")])
+pctNoBW = FiNoBW / TotalNoBW
+
+FiNoCol = length(df$FiNoCol[df$FiNoCol == "IM_3VIIMJClBmsGxtc"])
+TotalNoCol = length(df$FiNoCol[df$FiNoCol %in% c("IM_3VIIMJClBmsGxtc","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")])
+pctNoCol = FiNoCol / TotalNoCol
+
+pctNo = pctNoCol * (TotalNoCol / (TotalNoCol + TotalNoBW)) + pctNoBW * (TotalNoBW / (TotalNoCol + TotalNoBW))
+
+OverallC = (FiNoCol / TotalNoCol) * (TotalNoCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (FiSmCol / TotalSmCol) * (TotalSmCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (FiRegCol / TotalRegCol) * (TotalRegCol/ (TotalNoCol + TotalSmCol + TotalRegCol))
+
+OverallB = (FiNoBW / TotalNoBW) * (TotalNoBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (FiSmBW / TotalSmBW) * (TotalSmBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (FiRegBW / TotalRegBW) * (TotalRegBW/ (TotalNoBW + TotalSmBW + TotalRegBW))
+
+OverallDif = OverallC - OverallB
+```
+
+```{r}
+testColor = prop.test(x=c(FiRegCol + FiSmCol + FiNoCol, FiRegBW + FiSmBW + FiNoBW), n=c(TotalNoCol+TotalSmCol+TotalRegCol, TotalNoBW+TotalSmBW+TotalRegBW))
+
+testRegNoCol = prop.test(x=c(FiRegCol, FiNoCol), n=c(TotalRegCol, TotalNoCol))
+
+testRegNoBW = prop.test(x=c(FiRegBW, FiNoBW), n=c(TotalRegBW, TotalNoBW)) 
+
+testRegNo = prop.test(x=c(FiRegCol+FiRegBW, FiNoBW+FiNoCol), n=c(TotalRegBW+TotalRegCol, TotalNoBW+TotalNoCol))
+
+testRegSmCol = prop.test(x=c(FiRegCol, FiSmCol), n=c(TotalRegCol, TotalSmCol))
+
+testRegSmBW = prop.test(x=c(FiRegBW, FiSmBW), n=c(TotalRegBW, TotalSmBW)) 
+
+testRegSm = prop.test(x=c(FiRegCol+FiRegBW, FiSmBW+FiSmCol), n=c(TotalRegBW+TotalRegCol, TotalSmBW+TotalSmCol))
+
+testSmNoCol = prop.test(x=c(FiSmCol, FiNoCol), n=c(TotalSmCol, TotalNoCol))
+
+testSmNoBW = prop.test(x=c(FiSmBW, FiNoBW), n=c(TotalSmBW, TotalNoBW)) 
+
+testSmNo = prop.test(x=c(FiSmCol+FiSmBW, FiNoBW+FiNoCol), n=c(TotalSmBW+TotalSmCol, TotalNoBW+TotalNoCol))
+
+testColNo = prop.test(x=c(FiNoCol, FiNoBW), n=c(TotalNoCol, TotalNoBW))
+
+testColSm = prop.test(x=c(FiSmCol, FiSmBW), n=c(TotalSmCol, TotalSmBW)) 
+
+testColReg = prop.test(x=c(FiRegCol, FiRegBW), n=c(TotalRegCol, TotalRegBW))
+
+
+# Put it all together
+
+fitable = data.frame(Financial=c("Color", "Black and White", "Overall", "Color-B&W (PVal)"),
+                     Overall = c(round(OverallC, digits = 3), round(OverallB, digits = 3), "", paste(round(OverallDif, digits = 3), " (", round(testColor$p.value, digits = 3), ")")),
+                     NoImage = c(round(pctNoCol, digits = 3), round(pctNoBW, digits = 3), round(pctNo, digits = 3), paste(round(pctNoCol - pctNoBW, digits = 3), " (", round(testColNo$p.value, digits = 3), ")")),
+                     SmallImage = c(round(pctSmCol, digits = 3), round(pctSmBW, digits = 3), round(pctSm, digits = 3), paste(round(pctSmCol - pctSmBW, digits = 3), " (", round(testColSm$p.value, digits = 3), ")")),
+                     RegImage = c(round(pctRegCol, digits = 3), round(pctRegBW, digits = 3), round(pctReg, digits = 3), paste(round(pctRegCol - pctRegBW, digits = 3), " (", round(testColReg$p.value, digits = 3), ")")),
+                     "RegMinNo Pval"=c(paste(round(pctRegCol -pctNoCol, digits = 3), " (", round(testRegNoCol$p.value, digits = 3), ")"), paste(round(pctRegBW-pctNoBW, digits = 3), " (", round(testRegNoBW$p.value, digits = 3), ")"), paste(round(pctReg-pctNo, digits = 3), " (", round(testRegNo$p.value, digits = 3), ")"), ""),
+                     "RegMinSm PVal"=c(paste(round(pctRegCol - pctSmCol, digits = 3), " (", round(testRegSmCol$p.value, digits = 3), ")"), paste(round(pctRegBW - pctSmBW, digits = 3), " (", round(testRegSmBW$p.value, digits = 3), ")"), paste(round(pctReg - pctSm, digits = 3), " (", round(testRegSm$p.value, digits = 3), ")"), ""),
+                     "SmMinNo PVal"=c(paste(round(pctSmCol- pctNoCol, digits = 3), " (", round(testSmNoCol$p.value, digits = 3), ")"), paste(round(pctSmBW-pctNoBW, digits = 3), " (", round(testSmNoBW$p.value, digits = 3), ")"), paste(round(pctSm-pctNo, digits = 3), " (", round(testSmNo$p.value, digits = 3), ")"), ""))
+fitable
+```
+
+
+```{r}
+# Make Table for NonFiction
+NoRegCol = length(df$NoRegCol[df$NoRegCol== "IM_0kVDHpzAR3gMutE"])
+TotalRegCol = length(df$NoRegCol[df$NoRegCol %in% c("IM_0kVDHpzAR3gMutE","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")])
+pctRegCol = NoRegCol / TotalRegCol
+
+NoRegBW = length(df$NoRegBW[df$NoRegBW == "IM_9yr15wey45273nw"])
+TotalRegBW = length(df$NoRegBW[df$NoRegBW %in% c("IM_9yr15wey45273nw","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")])
+pctRegBW = NoRegBW / TotalRegBW
+
+pctReg = pctRegCol * (TotalRegCol / (TotalRegCol + TotalRegBW)) + pctRegBW * (TotalRegBW / (TotalRegCol + TotalRegBW))
+
+NoSmBW = length(df$NoSmBW[df$NoSmBW == "IM_77Ll7tk9eGKUWlE"])
+TotalSmBW = length(df$NoSmBW[df$NoSmBW %in% c("IM_77Ll7tk9eGKUWlE","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")])
+pctSmBW = NoSmBW / TotalSmBW
+
+NoSmCol = length(df$NoSmCol[df$NoSmCol == "IM_9sfqLb06QBgx0b4"])
+TotalSmCol = length(df$NoSmCol[df$NoSmCol %in% c("IM_9sfqLb06QBgx0b4","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")])
+pctSmCol = NoSmCol / TotalSmCol
+
+pctSm = pctSmCol * (TotalSmCol / (TotalSmCol + TotalSmBW)) + pctSmBW * (TotalSmBW / (TotalSmCol + TotalSmBW))
+
+NoNoBW = length(df$NoNoBW[df$NoNoBW == "IM_5bupItZ8rB3CcIe"])
+TotalNoBW = length(df$NoNoBW[df$NoNoBW %in% c("IM_5bupItZ8rB3CcIe","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")])
+pctNoBW = NoNoBW / TotalNoBW
+
+NoNoCol = length(df$NoNoCol[df$NoNoCol == "IM_3mlAuhwjf65T6wm"])
+TotalNoCol = length(df$NoNoCol[df$NoNoCol %in% c("IM_3mlAuhwjf65T6wm","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")])
+pctNoCol = NoNoCol / TotalNoCol
+
+pctNo = pctNoCol * (TotalNoCol / (TotalNoCol + TotalNoBW)) + pctNoBW * (TotalNoBW / (TotalNoCol + TotalNoBW))
+
+OverallC = (NoNoCol / TotalNoCol) * (TotalNoCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (NoSmCol / TotalSmCol) * (TotalSmCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (NoRegCol / TotalRegCol) * (TotalRegCol/ (TotalNoCol + TotalSmCol + TotalRegCol))
+
+OverallB = (NoNoBW / TotalNoBW) * (TotalNoBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (NoSmBW / TotalSmBW) * (TotalSmBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (NoRegBW / TotalRegBW) * (TotalRegBW/ (TotalNoBW + TotalSmBW + TotalRegBW))
+
+OverallDif = OverallC - OverallB
+```
+
+```{r}
+testColor = prop.test(x=c(NoRegCol + NoSmCol + NoNoCol, NoRegBW + NoSmBW + NoNoBW), n=c(TotalNoCol+TotalSmCol+TotalRegCol, TotalNoBW+TotalSmBW+TotalRegBW))
+
+testRegNoCol = prop.test(x=c(NoRegCol, NoNoCol), n=c(TotalRegCol, TotalNoCol))
+
+testRegNoBW = prop.test(x=c(NoRegBW, NoNoBW), n=c(TotalRegBW, TotalNoBW)) 
+
+testRegNo = prop.test(x=c(NoRegCol+NoRegBW, NoNoBW+NoNoCol), n=c(TotalRegBW+TotalRegCol, TotalNoBW+TotalNoCol))
+
+testRegSmCol = prop.test(x=c(NoRegCol, NoSmCol), n=c(TotalRegCol, TotalSmCol))
+
+testRegSmBW = prop.test(x=c(NoRegBW, NoSmBW), n=c(TotalRegBW, TotalSmBW)) 
+
+testRegSm = prop.test(x=c(NoRegCol+NoRegBW, NoSmBW+NoSmCol), n=c(TotalRegBW+TotalRegCol, TotalSmBW+TotalSmCol))
+
+testSmNoCol = prop.test(x=c(NoSmCol, NoNoCol), n=c(TotalSmCol, TotalNoCol))
+
+testSmNoBW = prop.test(x=c(NoSmBW, NoNoBW), n=c(TotalSmBW, TotalNoBW)) 
+
+testSmNo = prop.test(x=c(NoSmCol+NoSmBW, NoNoBW+NoNoCol), n=c(TotalSmBW+TotalSmCol, TotalNoBW+TotalNoCol))
+
+testColNo = prop.test(x=c(NoNoCol, NoNoBW), n=c(TotalNoCol, TotalNoBW))
+
+testColSm = prop.test(x=c(NoSmCol, NoSmBW), n=c(TotalSmCol, TotalSmBW)) 
+
+testColReg = prop.test(x=c(NoRegCol, NoRegBW), n=c(TotalRegCol, TotalRegBW))
+
+
+# Put it all together
+
+notable = data.frame(NonFiction=c("Color", "Black and White", "Overall", "Color-B&W (PVal)"),
+                     Overall = c(round(OverallC, digits = 3), round(OverallB, digits = 3), "", paste(round(OverallDif, digits = 3), " (", round(testColor$p.value, digits = 3), ")")),
+                     NoImage = c(round(pctNoCol, digits = 3), round(pctNoBW, digits = 3), round(pctNo, digits = 3), paste(round(pctNoCol - pctNoBW, digits = 3), " (", round(testColNo$p.value, digits = 3), ")")),
+                     SmallImage = c(round(pctSmCol, digits = 3), round(pctSmBW, digits = 3), round(pctSm, digits = 3), paste(round(pctSmCol - pctSmBW, digits = 3), " (", round(testColSm$p.value, digits = 3), ")")),
+                     RegImage = c(round(pctRegCol, digits = 3), round(pctRegBW, digits = 3), round(pctReg, digits = 3), paste(round(pctRegCol - pctRegBW, digits = 3), " (", round(testColReg$p.value, digits = 3), ")")),
+                     "RegMinNo Pval"=c(paste(round(pctRegCol -pctNoCol, digits = 3), " (", round(testRegNoCol$p.value, digits = 3), ")"), paste(round(pctRegBW-pctNoBW, digits = 3), " (", round(testRegNoBW$p.value, digits = 3), ")"), paste(round(pctReg-pctNo, digits = 3), " (", round(testRegNo$p.value, digits = 3), ")"), ""),
+                     "RegMinSm PVal"=c(paste(round(pctRegCol - pctSmCol, digits = 3), " (", round(testRegSmCol$p.value, digits = 3), ")"), paste(round(pctRegBW - pctSmBW, digits = 3), " (", round(testRegSmBW$p.value, digits = 3), ")"), paste(round(pctReg - pctSm, digits = 3), " (", round(testRegSm$p.value, digits = 3), ")"), ""),
+                     "SmMinNo PVal"=c(paste(round(pctSmCol- pctNoCol, digits = 3), " (", round(testSmNoCol$p.value, digits = 3), ")"), paste(round(pctSmBW-pctNoBW, digits = 3), " (", round(testSmNoBW$p.value, digits = 3), ")"), paste(round(pctSm-pctNo, digits = 3), " (", round(testSmNo$p.value, digits = 3), ")"), ""))
+notable
+```
+
+
+```{r}
+# Make Table for Classic
+ClRegCol = length(df$ClRegCol[df$ClRegCol== "IM_cJjcFz8HZ5kpkFM"])
+TotalRegCol = length(df$ClRegCol[df$ClRegCol %in% c("IM_cJjcFz8HZ5kpkFM","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctRegCol = ClRegCol / TotalRegCol
+
+ClRegBW = length(df$ClRegBW[df$ClRegBW == "IM_aacHgSSJ8SpHgQS"])
+TotalRegBW = length(df$ClRegBW[df$ClRegBW %in% c("IM_aacHgSSJ8SpHgQS","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctRegBW = ClRegBW / TotalRegBW
+
+pctReg = pctRegCol * (TotalRegCol / (TotalRegCol + TotalRegBW)) + pctRegBW * (TotalRegBW / (TotalRegCol + TotalRegBW))
+
+ClSmBW = length(df$ClSmBW[df$ClSmBW == "IM_9zXdTIKXUek7YCq"])
+TotalSmBW = length(df$ClSmBW[df$ClSmBW %in% c("IM_9zXdTIKXUek7YCq","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctSmBW = ClSmBW / TotalSmBW
+
+ClSmCol = length(df$ClSmCol[df$ClSmCol == "IM_9H4EoaPNkdi3cAS"])
+TotalSmCol = length(df$ClSmCol[df$ClSmCol %in% c("IM_9H4EoaPNkdi3cAS","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctSmCol = ClSmCol / TotalSmCol
+
+pctSm = pctSmCol * (TotalSmCol / (TotalSmCol + TotalSmBW)) + pctSmBW * (TotalSmBW / (TotalSmCol + TotalSmBW))
+
+ClNoBW = length(df$ClNoBW[df$ClNoBW == "IM_8uJIu79kF2DDVga"])
+TotalNoBW = length(df$ClNoBW[df$ClNoBW %in% c("IM_8uJIu79kF2DDVga","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctNoBW = ClNoBW / TotalNoBW
+
+ClNoCol = length(df$ClNoCol[df$ClNoCol == "IM_d5L0mbRZEVGHSzc"])
+TotalNoCol = length(df$ClNoCol[df$ClNoCol %in% c("IM_d5L0mbRZEVGHSzc","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctNoCol = ClNoCol / TotalNoCol
+
+pctNo = pctNoCol * (TotalNoCol / (TotalNoCol + TotalNoBW)) + pctNoBW * (TotalNoBW / (TotalNoCol + TotalNoBW))
+
+OverallC = (ClNoCol / TotalNoCol) * (TotalNoCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (ClSmCol / TotalSmCol) * (TotalSmCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (ClRegCol / TotalRegCol) * (TotalRegCol/ (TotalNoCol + TotalSmCol + TotalRegCol))
+
+OverallB = (ClNoBW / TotalNoBW) * (TotalNoBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (ClSmBW / TotalSmBW) * (TotalSmBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (ClRegBW / TotalRegBW) * (TotalRegBW/ (TotalNoBW + TotalSmBW + TotalRegBW))
+
+OverallDif = OverallC - OverallB
+```
+
+```{r}
+testColor = prop.test(x=c(ClRegCol + ClSmCol + ClNoCol, ClRegBW + ClSmBW + ClNoBW), n=c(TotalNoCol+TotalSmCol+TotalRegCol, TotalNoBW+TotalSmBW+TotalRegBW))
+
+testRegNoCol = prop.test(x=c(ClRegCol, ClNoCol), n=c(TotalRegCol, TotalNoCol))
+
+testRegNoBW = prop.test(x=c(ClRegBW, ClNoBW), n=c(TotalRegBW, TotalNoBW)) 
+
+testRegNo = prop.test(x=c(ClRegCol+ClRegBW, ClNoBW+ClNoCol), n=c(TotalRegBW+TotalRegCol, TotalNoBW+TotalNoCol))
+
+testRegSmCol = prop.test(x=c(ClRegCol, ClSmCol), n=c(TotalRegCol, TotalSmCol))
+
+testRegSmBW = prop.test(x=c(ClRegBW, ClSmBW), n=c(TotalRegBW, TotalSmBW)) 
+
+testRegSm = prop.test(x=c(ClRegCol+ClRegBW, ClSmBW+ClSmCol), n=c(TotalRegBW+TotalRegCol, TotalSmBW+TotalSmCol))
+
+testSmNoCol = prop.test(x=c(ClSmCol, ClNoCol), n=c(TotalSmCol, TotalNoCol))
+
+testSmNoBW = prop.test(x=c(ClSmBW, ClNoBW), n=c(TotalSmBW, TotalNoBW)) 
+
+testSmNo = prop.test(x=c(ClSmCol+ClSmBW, ClNoBW+ClNoCol), n=c(TotalSmBW+TotalSmCol, TotalNoBW+TotalNoCol))
+
+testColNo = prop.test(x=c(ClNoCol, ClNoBW), n=c(TotalNoCol, TotalNoBW))
+
+testColSm = prop.test(x=c(ClSmCol, ClSmBW), n=c(TotalSmCol, TotalSmBW)) 
+
+testColReg = prop.test(x=c(ClRegCol, ClRegBW), n=c(TotalRegCol, TotalRegBW))
+
+
+# Put it all together
+
+cltable = data.frame(Classic=c("Color", "Black and White", "Overall", "Color-B&W (PVal)"),
+                     Overall = c(round(OverallC, digits = 3), round(OverallB, digits = 3), "", paste(round(OverallDif, digits = 3), " (", round(testColor$p.value, digits = 3), ")")),
+                     NoImage = c(round(pctNoCol, digits = 3), round(pctNoBW, digits = 3), round(pctNo, digits = 3), paste(round(pctNoCol - pctNoBW, digits = 3), " (", round(testColNo$p.value, digits = 3), ")")),
+                     SmallImage = c(round(pctSmCol, digits = 3), round(pctSmBW, digits = 3), round(pctSm, digits = 3), paste(round(pctSmCol - pctSmBW, digits = 3), " (", round(testColSm$p.value, digits = 3), ")")),
+                     RegImage = c(round(pctRegCol, digits = 3), round(pctRegBW, digits = 3), round(pctReg, digits = 3), paste(round(pctRegCol - pctRegBW, digits = 3), " (", round(testColReg$p.value, digits = 3), ")")),
+                     "RegMinNo Pval"=c(paste(round(pctRegCol -pctNoCol, digits = 3), " (", round(testRegNoCol$p.value, digits = 3), ")"), paste(round(pctRegBW-pctNoBW, digits = 3), " (", round(testRegNoBW$p.value, digits = 3), ")"), paste(round(pctReg-pctNo, digits = 3), " (", round(testRegNo$p.value, digits = 3), ")"), ""),
+                     "RegMinSm PVal"=c(paste(round(pctRegCol - pctSmCol, digits = 3), " (", round(testRegSmCol$p.value, digits = 3), ")"), paste(round(pctRegBW - pctSmBW, digits = 3), " (", round(testRegSmBW$p.value, digits = 3), ")"), paste(round(pctReg - pctSm, digits = 3), " (", round(testRegSm$p.value, digits = 3), ")"), ""),
+                     "SmMinNo PVal"=c(paste(round(pctSmCol- pctNoCol, digits = 3), " (", round(testSmNoCol$p.value, digits = 3), ")"), paste(round(pctSmBW-pctNoBW, digits = 3), " (", round(testSmNoBW$p.value, digits = 3), ")"), paste(round(pctSm-pctNo, digits = 3), " (", round(testSmNo$p.value, digits = 3), ")"), ""))
+cltable
+```
+
+```{r}
+# Overall, combined table
+allRegCol = ChRegCol + FiRegCol + NoRegCol + ClRegCol
+TotalRegCol = length(df$ChRegCol[df$ChRegCol %in% c(1,2,3)]) + length(df$FiRegCol[df$FiRegCol %in% c("IM_cC15sUM3wdS0qGO","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")]) + length(df$NoRegCol[df$NoRegCol %in% c("IM_0kVDHpzAR3gMutE","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")]) + length(df$ClRegCol[df$ClRegCol %in% c("IM_cJjcFz8HZ5kpkFM","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctRegCol = allRegCol / TotalRegCol
+
+allRegBW = ChRegBW + FiRegBW + NoRegBW + ClRegBW
+TotalRegBW = length(df$ChRegBW[df$ChRegBW %in% c(1,2,3)]) + length(df$FiRegBW[df$FiRegBW %in% c("IM_4YZShV208PsmCMu","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")]) + length(df$NoRegBW[df$NoRegBW %in% c("IM_9yr15wey45273nw","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")]) + length(df$ClRegBW[df$ClRegBW %in% c("IM_aacHgSSJ8SpHgQS","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctRegBW = allRegBW / TotalRegBW
+
+pctReg = pctRegCol * (TotalRegCol / (TotalRegCol + TotalRegBW)) + pctRegBW * (TotalRegBW / (TotalRegCol + TotalRegBW))
+
+allSmBW = ChSmBW + FiSmBW + NoSmBW + ClSmBW
+TotalSmBW = length(df$ChSmBW[df$ChSmBW %in% c(1,2,3)]) + length(df$FiSmBW[df$FiSmBW %in% c("IM_5C1focehBmaxTiS","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")]) + length(df$NoSmBW[df$NoSmBW %in% c("IM_77Ll7tk9eGKUWlE","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")]) + length(df$ClSmBW[df$ClSmBW %in% c("IM_9zXdTIKXUek7YCq","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctSmBW = allSmBW / TotalSmBW
+
+allSmCol = ChSmCol + FiSmCol + NoSmCol + ClSmCol
+TotalSmCol = length(df$ChSmCol[df$ChSmCol %in% c(1,2,3)]) + length(df$FiSmCol[df$FiSmCol %in% c("IM_bpXACllyeiwpR78","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")]) + length(df$NoSmCol[df$NoSmCol %in% c("IM_9sfqLb06QBgx0b4","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")]) + length(df$ClSmCol[df$ClSmCol %in% c("IM_9H4EoaPNkdi3cAS","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctSmCol = allSmCol / TotalSmCol
+
+pctSm = pctSmCol * (TotalSmCol / (TotalSmCol + TotalSmBW)) + pctSmBW * (TotalSmBW / (TotalSmCol + TotalSmBW))
+
+allNoBW = ChNoBW + FiNoBW + NoNoBW + ClNoBW
+TotalNoBW = length(df$ChNoBW[df$ChNoBW %in% c(1,2,3)]) + length(df$FiNoBW[df$FiNoBW %in% c("IM_9o9d8MJYLTwpJSC","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")]) + length(df$NoNoBW[df$NoNoBW %in% c("IM_5bupItZ8rB3CcIe","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")]) + length(df$ClNoBW[df$ClNoBW %in% c("IM_8uJIu79kF2DDVga","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctNoBW = allNoBW / TotalNoBW
+
+allNoCol = ChNoCol + FiNoCol + NoNoCol + ClNoCol
+TotalNoCol = length(df$ChNoCol[df$ChNoCol %in% c(1,2,3)]) + length(df$FiNoCol[df$FiNoCol %in% c("IM_3VIIMJClBmsGxtc","IM_bCxbEb2KEjRiSAm","IM_79BIls9ITEeLEy2")]) + length(df$NoNoCol[df$NoNoCol %in% c("IM_3mlAuhwjf65T6wm","IM_6tfBdi8rc1h4SN0","IM_0rzZZl5rKnoVR1s")]) + length(df$ClNoCol[df$ClNoCol %in% c("IM_d5L0mbRZEVGHSzc","IM_9o7tEXHqbcH8CrQ","IM_eQJuiJHm3FKuXmS")])
+pctNoCol = allNoCol / TotalNoCol
+
+pctNo = pctNoCol * (TotalNoCol / (TotalNoCol + TotalNoBW)) + pctNoBW * (TotalNoBW / (TotalNoCol + TotalNoBW))
+
+OverallC = (allNoCol / TotalNoCol) * (TotalNoCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (allSmCol / TotalSmCol) * (TotalSmCol/ (TotalNoCol + TotalSmCol + TotalRegCol)) + (allRegCol / TotalRegCol) * (TotalRegCol/ (TotalNoCol + TotalSmCol + TotalRegCol))
+
+OverallB = (allNoBW / TotalNoBW) * (TotalNoBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (allSmBW / TotalSmBW) * (TotalSmBW/ (TotalNoBW + TotalSmBW + TotalRegBW)) + (allRegBW / TotalRegBW) * (TotalRegBW/ (TotalNoBW + TotalSmBW + TotalRegBW))
+
+OverallDif = OverallC - OverallB
+```
+
+```{r}
+# Overall, combined table and results
+
+testColor = prop.test(x=c(allRegCol + allSmCol + allNoCol, allRegBW + allSmBW + allNoBW), n=c(TotalNoCol+TotalSmCol+TotalRegCol, TotalNoBW+TotalSmBW+TotalRegBW))
+
+testRegNoCol = prop.test(x=c(allRegCol, allNoCol), n=c(TotalRegCol, TotalNoCol))
+
+testRegNoBW = prop.test(x=c(allRegBW, allNoBW), n=c(TotalRegBW, TotalNoBW)) 
+
+testRegNo = prop.test(x=c(allRegCol+allRegBW, allNoBW+allNoCol), n=c(TotalRegBW+TotalRegCol, TotalNoBW+TotalNoCol))
+
+testRegSmCol = prop.test(x=c(allRegCol, allSmCol), n=c(TotalRegCol, TotalSmCol))
+
+testRegSmBW = prop.test(x=c(allRegBW, allSmBW), n=c(TotalRegBW, TotalSmBW)) 
+
+testRegSm = prop.test(x=c(allRegCol+allRegBW, allSmBW+allSmCol), n=c(TotalRegBW+TotalRegCol, TotalSmBW+TotalSmCol))
+
+testSmNoCol = prop.test(x=c(allSmCol, allNoCol), n=c(TotalSmCol, TotalNoCol))
+
+testSmNoBW = prop.test(x=c(allSmBW, allNoBW), n=c(TotalSmBW, TotalNoBW)) 
+
+testSmNo = prop.test(x=c(allSmCol+allSmBW, allNoBW+ClNoCol), n=c(TotalSmBW+TotalSmCol, TotalNoBW+TotalNoCol))
+
+testColNo = prop.test(x=c(allNoCol, allNoBW), n=c(TotalNoCol, TotalNoBW))
+
+testColSm = prop.test(x=c(allSmCol, allSmBW), n=c(TotalSmCol, TotalSmBW)) 
+
+testColReg = prop.test(x=c(allRegCol, allRegBW), n=c(TotalRegCol, TotalRegBW))
+
+
+# Put it all together
+
+alltable = data.frame(Combined=c("Color", "Black and White", "Overall", "Color-B&W (PVal)"),
+                     Overall = c(round(OverallC, digits = 3), round(OverallB, digits = 3), "", paste(round(OverallDif, digits = 3), " (", round(testColor$p.value, digits = 3), ")")),
+                     NoImage = c(round(pctNoCol, digits = 3), round(pctNoBW, digits = 3), round(pctNo, digits = 3), paste(round(pctNoCol - pctNoBW, digits = 3), " (", round(testColNo$p.value, digits = 3), ")")),
+                     SmallImage = c(round(pctSmCol, digits = 3), round(pctSmBW, digits = 3), round(pctSm, digits = 3), paste(round(pctSmCol - pctSmBW, digits = 3), " (", round(testColSm$p.value, digits = 3), ")")),
+                     RegImage = c(round(pctRegCol, digits = 3), round(pctRegBW, digits = 3), round(pctReg, digits = 3), paste(round(pctRegCol - pctRegBW, digits = 3), " (", round(testColReg$p.value, digits = 3), ")")),
+                     "RegMinNo Pval"=c(paste(round(pctRegCol -pctNoCol, digits = 3), " (", round(testRegNoCol$p.value, digits = 3), ")"), paste(round(pctRegBW-pctNoBW, digits = 3), " (", round(testRegNoBW$p.value, digits = 3), ")"), paste(round(pctReg-pctNo, digits = 3), " (", round(testRegNo$p.value, digits = 3), ")"), ""),
+                     "RegMinSm PVal"=c(paste(round(pctRegCol - pctSmCol, digits = 3), " (", round(testRegSmCol$p.value, digits = 3), ")"), paste(round(pctRegBW - pctSmBW, digits = 3), " (", round(testRegSmBW$p.value, digits = 3), ")"), paste(round(pctReg - pctSm, digits = 3), " (", round(testRegSm$p.value, digits = 3), ")"), ""),
+                     "SmMinNo PVal"=c(paste(round(pctSmCol- pctNoCol, digits = 3), " (", round(testSmNoCol$p.value, digits = 3), ")"), paste(round(pctSmBW-pctNoBW, digits = 3), " (", round(testSmNoBW$p.value, digits = 3), ")"), paste(round(pctSm-pctNo, digits = 3), " (", round(testSmNo$p.value, digits = 3), ")"), ""))
+alltable
+```
