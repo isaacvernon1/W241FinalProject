@@ -72,6 +72,11 @@ df$Classic = (df$ClRegCol != "" | df$ClRegBW != "" | df$ClSmCol !="" | df$ClSmBW
 df$NoAnswer = (!df$Childrens & !df$Financial & !df$NonFiction & !df$Classic)
 ```
 
+```{r}
+# If we want the kindle only reader subpopulation
+#df = df[(df$book_covariate == "I buy ebooks") | (df$book_covariate == "I buy both")]
+```
+
 
 ```{r}
 # Make Table for Children
